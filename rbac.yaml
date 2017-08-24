@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: estafette-gke-node-pool-shifter
+  labels:
+    app: estafette-gke-node-pool-shifter
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: estafette-gke-node-pool-shifter
+  labels:
+    app: estafette-gke-node-pool-shifter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: estafette-gke-node-pool-shifter
+subjects:
+- kind: ServiceAccount
+  name: estafette-gke-node-pool-shifter
+  namespace: estafette
