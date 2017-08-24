@@ -191,9 +191,11 @@ func main() {
 
 				status := "shifted"
 
+				waitGroup.Add()
 				if err := shiftNode(gcloud, *nodePoolFrom, *nodePoolTo, nodesFrom, nodesTo); err != nil {
 					status = "failed"
 				}
+				waitGroup.Done()
 
 				nodeTotals.With(prometheus.Labels{"status": status}).Inc()
 			}
