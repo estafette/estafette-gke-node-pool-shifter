@@ -84,7 +84,7 @@ spec:
 
 For development purpose, you can create a new cluster with 2 autoscaled node pools, 1 preemptible and 1 regular VM.
 
-### Create the cluster with appropriate node pools
+#### Create the cluster with appropriate node pools
 
 ```
 export CLUSTER_NAME=node-shifter
@@ -114,13 +114,13 @@ gcloud beta container node-pools create preemptible-pool \
   --preemptible
 ```
 
-### Deploy an application
+#### Deploy an application
 
 ```
 kubectl run nginx --image=nginx:alpine --replicas=5 --limits='cpu=200m,memory=512Mi'
 ```
 
-### Start the node pool shifter
+#### Start the node pool shifter
 
 ```
 # proxy master
