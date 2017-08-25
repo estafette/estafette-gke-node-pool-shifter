@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/ericchiang/k8s"
 	apiv1 "github.com/ericchiang/k8s/api/v1"
@@ -19,7 +18,6 @@ type Kubernetes struct {
 type KubernetesClient interface {
 	GetNode(string) (*apiv1.Node, error)
 	GetNodeList(string) (*apiv1.NodeList, error)
-	GetProjectIdAndZoneFromNode(string) (string, string, error)
 }
 
 // NewKubernetesClient return a Kubernetes client
@@ -59,32 +57,20 @@ func NewKubernetesClient(host string, port string, namespace string, kubeConfigP
 	return
 }
 
-// GetProjectIdAndZoneFromNode returns project id and zone from given node name
-// by getting informations from node spec provider id
-func (k *Kubernetes) GetProjectIdAndZoneFromNode(name string) (projectId string, zone string, err error) {
-	node, err := k.GetNode(name)
-
-	if err != nil {
-		return
-	}
-
-	s := strings.Split(*node.Spec.ProviderID, "/")
-	projectId = s[2]
-	zone = s[3]
-
-	return
-}
-
 // GetNode return the node object from given name
 func (k *Kubernetes) GetNode(name string) (node *apiv1.Node, err error) {
 	node, err = k.Client.CoreV1().GetNode(context.Background(), name)
 	return
 }
 
-// GetNodeList return a list of nodes from a given node pool name
+// GetNodeList return a list of nodes from a given node pool name, if name is empty all nodes are returned
 func (k *Kubernetes) GetNodeList(name string) (nodes *apiv1.NodeList, err error) {
 	labels := new(k8s.LabelSelector)
-	labels.Eq("cloud.google.com/gke-nodepool", name)
+
+	if name != "" {
+		labels.Eq("cloud.google.com/gke-nodepool", name)
+	}
+
 	nodes, err = k.Client.CoreV1().ListNodes(context.Background(), labels.Selector())
 	return
 }

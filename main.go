@@ -22,21 +22,20 @@ import (
 
 var (
 	// flags
-	clusterName = kingpin.Flag("cluster-name", "The name of the cluster.").
-			Envar("CLUSTER_NAME").
-			String()
 	interval = kingpin.Flag("interval", "Time in second to wait between each node check.").
 			Envar("INTERVAL").
-			Default("600").
+			Default("300").
 			Short('i').
 			Int()
 	kubeConfigPath = kingpin.Flag("kubeconfig", "Provide the path to the kube config path, usually located in ~/.kube/config. For out of cluster execution").
 			Envar("KUBECONFIG").
 			String()
 	nodePoolFrom = kingpin.Flag("node-pool-from", "The name of the node pool to shift from.").
+			Required().
 			Envar("NODE_POOL_FROM").
 			String()
 	nodePoolTo = kingpin.Flag("node-pool-to", "The name of the node pool to shift to.").
+			Required().
 			Envar("NODE_POOL_TO").
 			String()
 	nodePoolFromMinNode = kingpin.Flag("node-pool-from-min-node", "The minimum number of node to keep for the node pool to shift.").
@@ -120,6 +119,37 @@ func main() {
 		}
 	}()
 
+	// create GCloud Client
+	gcloud, err := NewGCloudClient()
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error creating GCloud client")
+	}
+
+	// get project information (gcloud project, zone and cluster id) from one of the node
+	nodes, err := kubernetes.GetNodeList("")
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error while getting the list of nodes")
+	}
+
+	if len(nodes.Items) == 0 {
+		log.Fatal().Msg("Error there is no node in the cluster")
+	}
+
+	gcloud.GetProjectDetailsFromNode(*nodes.Items[0].Spec.ProviderID)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error getting project details from node")
+	}
+
+	// now that we have the cluster id, create GCloud container client
+	gcloudContainerClient, err := gcloud.NewGCloudContainerClient()
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error creating GCloud container client")
+	}
+
 	// define channel and wait group to gracefully shutdown the application
 	gracefulShutdown := make(chan os.Signal)
 	signal.Notify(gracefulShutdown, syscall.SIGTERM, syscall.SIGINT)
@@ -163,36 +193,15 @@ func main() {
 				Msgf("Node pool has %d node(s), minimun wanted: %d node(s)", nodePoolFromSize, *nodePoolFromMinNode)
 
 			// TODO remove nodePoolFromMinNode, use value from node pool autoscaling setting (min node) instead
-			if nodePoolFromSize > *nodePoolFromMinNode {
+			if nodePoolFromSize > *nodePoolFromMinNode && len(nodesFrom.Items) > 0 {
 				log.Info().
 					Str("node-pool", *nodePoolTo).
 					Msg("Attempting to shift one node...")
 
-				projectId, zone, err := kubernetes.GetProjectIdAndZoneFromNode(*nodesFrom.Items[0].Metadata.Name)
-
-				if err != nil {
-					log.Error().
-						Err(err).
-						Str("node-pool", *nodePoolFrom).
-						Msg("Error getting project id and zone from node")
-					return
-				}
-
-				// TODO get cluster name, should be a way to remove it from the flags
-				gcloud, err := NewGCloudClient(projectId, zone, *clusterName)
-
-				if err != nil {
-					log.Error().
-						Err(err).
-						Str("node-pool", *nodePoolFrom).
-						Msg("Error creating GCloud client")
-					return
-				}
-
 				status := "shifted"
 
-				waitGroup.Add()
-				if err := shiftNode(gcloud, *nodePoolFrom, *nodePoolTo, nodesFrom, nodesTo); err != nil {
+				waitGroup.Add(1)
+				if err := shiftNode(gcloudContainerClient, *nodePoolFrom, *nodePoolTo, nodesFrom, nodesTo); err != nil {
 					status = "failed"
 				}
 				waitGroup.Done()
@@ -214,7 +223,8 @@ func main() {
 	log.Info().Msg("Shutting down...")
 }
 
-func shiftNode(g GCloudClient, fromName, toName string, from, to *apiv1.NodeList) (err error) {
+// shiftNode safely try to add a new node to a pool then remove a node from another
+func shiftNode(g GCloudContainerClient, fromName, toName string, from, to *apiv1.NodeList) (err error) {
 	// Add node
 	toCurrentSize := len(to.Items)
 	toNewSize := int64(toCurrentSize + 1)
