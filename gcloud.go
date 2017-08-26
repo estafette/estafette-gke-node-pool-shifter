@@ -30,11 +30,8 @@ type GCloud struct {
 }
 
 type GCloudContainer struct {
-	Cluster string
-	Context context.Context
-	Project string
+	Client  *GCloud
 	Service *container.Service
-	Zone    string
 }
 
 type GCloudClient interface {
@@ -75,11 +72,8 @@ func (g *GCloud) NewGCloudContainerClient() (gcloud GCloudContainerClient, err e
 	}
 
 	gcloud = &GCloudContainer{
-		Cluster: g.Cluster,
-		Context: g.Context,
-		Project: g.Project,
+		Client:  g,
 		Service: service,
-		Zone:    g.Zone,
 	}
 
 	return
@@ -119,7 +113,8 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 
 // GetNodePool retrieve a given node pool
 func (g *GCloudContainer) GetNodePool(name string) (nodePool *container.NodePool, err error) {
-	nodePool, err = g.Service.Projects.Zones.Clusters.NodePools.Get(g.Project, g.Zone, g.Cluster, name).Context(g.Context).Do()
+	nodePool, err = g.Service.Projects.Zones.Clusters.NodePools.Get(g.Client.Project, g.Client.Zone, g.Client.Cluster,
+		name).Context(g.Client.Context).Do()
 	return
 }
 
@@ -129,7 +124,8 @@ func (g *GCloudContainer) SetNodePoolSize(name string, size int64) (err error) {
 		NodeCount: size,
 	}
 
-	operation, err := g.Service.Projects.Zones.Clusters.NodePools.SetSize(g.Project, g.Zone, g.Cluster, name, nodePoolSizeRequest).Context(g.Context).Do()
+	operation, err := g.Service.Projects.Zones.Clusters.NodePools.SetSize(g.Client.Project, g.Client.Zone,
+		g.Client.Cluster, name, nodePoolSizeRequest).Context(g.Client.Context).Do()
 
 	if err != nil {
 		return
@@ -146,10 +142,10 @@ func (g *GCloudContainer) waitForOperation(operation *container.Operation) (err 
 	timeout := operationWaitTimeoutSecond * time.Second
 
 	for {
-		log.Debug().Msgf("Waiting for operation %s %s %s", g.Project, g.Zone, operation.Name)
+		log.Debug().Msgf("Waiting for operation %s %s %s", g.Client.Project, g.Client.Zone, operation.Name)
 
-		if op, err := g.Service.Projects.Zones.Operations.Get(g.Project, g.Zone, operation.Name).Do(); err == nil {
-			log.Debug().Msgf("Operation %s %s %s status: %s", g.Project, g.Zone, operation.Name, op.Status)
+		if op, err := g.Service.Projects.Zones.Operations.Get(g.Client.Project, g.Client.Zone, operation.Name).Do(); err == nil {
+			log.Debug().Msgf("Operation %s %s %s status: %s", g.Client.Project, g.Client.Zone, operation.Name, op.Status)
 
 			if op.Status == "DONE" {
 				return nil

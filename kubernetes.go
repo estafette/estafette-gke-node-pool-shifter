@@ -12,7 +12,8 @@ import (
 )
 
 type Kubernetes struct {
-	Client *k8s.Client
+	Client  *k8s.Client
+	Context context.Context
 }
 
 type KubernetesClient interface {
@@ -51,7 +52,8 @@ func NewKubernetesClient(host string, port string, namespace string, kubeConfigP
 	}
 
 	kubernetes = &Kubernetes{
-		Client: client,
+		Client:  client,
+		Context: context.Background(),
 	}
 
 	return
@@ -59,7 +61,7 @@ func NewKubernetesClient(host string, port string, namespace string, kubeConfigP
 
 // GetNode return the node object from given name
 func (k *Kubernetes) GetNode(name string) (node *apiv1.Node, err error) {
-	node, err = k.Client.CoreV1().GetNode(context.Background(), name)
+	node, err = k.Client.CoreV1().GetNode(k.Context, name)
 	return
 }
 
@@ -71,7 +73,7 @@ func (k *Kubernetes) GetNodeList(name string) (nodes *apiv1.NodeList, err error)
 		labels.Eq("cloud.google.com/gke-nodepool", name)
 	}
 
-	nodes, err = k.Client.CoreV1().ListNodes(context.Background(), labels.Selector())
+	nodes, err = k.Client.CoreV1().ListNodes(k.Context, labels.Selector())
 	return
 }
 

@@ -11,7 +11,7 @@ You can either use environment variables or flags to configure the following set
 
 | Environment variable   | Flag                     | Default  | Description
 | ---------------------- | ------------------------ | -------- | -----------------------------------------------------------------
-| INTERVAL               | --interval (-i)          | 600      | Time in second to wait between each shift check
+| INTERVAL               | --interval (-i)          | 300      | Time in second to wait between each shift check
 | KUBECONFIG             | --kubeconfig             |          | Provide the path to the kube config path, usually located in ~/.kube/config. For out of cluster execution
 | METRICS_LISTEN_ADDRESS | --metrics-listen-address | :9001    | The address to listen on for Prometheus metrics requests
 | METRICS_PATH           | --metrics-path           | /metrics | The path to listen for Prometheus metrics requests
@@ -25,6 +25,7 @@ As a Kubernetes administrator, you first need to verify if your cluster has corr
 set to https://www.googleapis.com/auth/cloud-platform. If you cannot give permission or change the scope, you can
 create a service account with Compute and Container access, mount the file in the pod via a secret and set the
 GOOGLE_APPLICATION_CREDENTIALS environment variable to the path of this file. See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
+
 After what you should deploy the rbac.yaml file which set role and permissions inside the cluster. Then deploy the
 application to Kubernetes cluster using the manifest below.
 
@@ -55,7 +56,7 @@ spec:
         app: estafette-gke-node-pool-shifter
     spec:
       serviceAccount: estafette-gke-node-pool-shifter
-      terminationGracePeriodSeconds: 600
+      terminationGracePeriodSeconds: 300
       containers:
       - name: estafette-gke-node-pool-shifter
         image: estafette/estafette-gke-node-pool-shifter:latest
@@ -99,6 +100,7 @@ gcloud beta container clusters create $CLUSTER_NAME \
   --project=$PROJECT \
   --zone=$ZONE \
   --cluster-version=$CLUSTER_VERSION \
+  --scopes=https://www.googleapis.com/auth/cloud-platform \
   --num-nodes=1 \
   --enable-autoscaling \
   --min-nodes=0 \
@@ -109,6 +111,7 @@ gcloud beta container node-pools create preemptible-pool \
   --project=$PROJECT \
   --zone=$ZONE \
   --cluster=$CLUSTER_NAME \
+  --scopes=https://www.googleapis.com/auth/cloud-platform \
   --num-nodes=1  \
   --enable-autoscaling \
   --min-nodes=1 \
@@ -135,7 +138,7 @@ go build && ./estafette-gke-node-pool-shifter --node-pool-from=default-pool --no
 Note: `KUBECONFIG=~/.kube/config` as environment variable can also be used if you don't want to use the `kubectl proxy`
 command.
 
-If necessary, you can resize the node pool resize:
+If necessary, you can resize the node pool size:
 ```
 gcloud container clusters resize $CLUSTER_NAME
   --project=$PROJECT \
