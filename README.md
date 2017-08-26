@@ -21,8 +21,12 @@ You can either use environment variables or flags to configure the following set
 
 ### In cluster
 
-As a Kubernetes administrator, you first need to deploy the rbac.yaml file which set role and permissions.
-Then deploy the application to Kubernetes cluster using the manifest below.
+As a Kubernetes administrator, you first need to verify if your cluster has correct permissions, the scope should be
+set to https://www.googleapis.com/auth/cloud-platform. If you cannot give permission or change the scope, you can
+create a service account with Compute and Container access, mount the file in the pod via a secret and set the
+GOOGLE_APPLICATION_CREDENTIALS environment variable to the path of this file. See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
+After what you should deploy the rbac.yaml file which set role and permissions inside the cluster. Then deploy the
+application to Kubernetes cluster using the manifest below.
 
 
 ```yaml

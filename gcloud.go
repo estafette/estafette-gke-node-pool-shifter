@@ -23,15 +23,17 @@ const (
 
 type GCloud struct {
 	Client  *http.Client
-	Project string
 	Cluster string
+	Context context.Context
+	Project string
 	Zone    string
 }
 
 type GCloudContainer struct {
-	Service *container.Service
-	Project string
 	Cluster string
+	Context context.Context
+	Project string
+	Service *container.Service
 	Zone    string
 }
 
@@ -48,14 +50,16 @@ type GCloudContainerClient interface {
 
 // NewGCloudClient return a GCloud client
 func NewGCloudClient() (gcloud GCloudClient, err error) {
-	client, err := google.DefaultClient(context.Background(), compute.CloudPlatformScope)
+	ctx := context.Background()
+	client, err := google.DefaultClient(ctx, container.CloudPlatformScope)
 
 	if err != nil {
 		err = fmt.Errorf("Error creating GCloud client:\n%v", err)
 	}
 
 	gcloud = &GCloud{
-		Client: client,
+		Client:  client,
+		Context: ctx,
 	}
 
 	return
@@ -72,6 +76,7 @@ func (g *GCloud) NewGCloudContainerClient() (gcloud GCloudContainerClient, err e
 
 	gcloud = &GCloudContainer{
 		Cluster: g.Cluster,
+		Context: g.Context,
 		Project: g.Project,
 		Service: service,
 		Zone:    g.Zone,
@@ -94,7 +99,7 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 		return
 	}
 
-	node, err := service.Instances.Get(g.Project, g.Zone, s[4]).Context(context.Background()).Do()
+	node, err := service.Instances.Get(g.Project, g.Zone, s[4]).Context(g.Context).Do()
 
 	if err != nil {
 		err = fmt.Errorf("Error retrieving instance details from GCloud: %v", err)
@@ -114,7 +119,7 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 
 // GetNodePool retrieve a given node pool
 func (g *GCloudContainer) GetNodePool(name string) (nodePool *container.NodePool, err error) {
-	nodePool, err = g.Service.Projects.Zones.Clusters.NodePools.Get(g.Project, g.Zone, g.Cluster, name).Context(context.Background()).Do()
+	nodePool, err = g.Service.Projects.Zones.Clusters.NodePools.Get(g.Project, g.Zone, g.Cluster, name).Context(g.Context).Do()
 	return
 }
 
@@ -124,7 +129,7 @@ func (g *GCloudContainer) SetNodePoolSize(name string, size int64) (err error) {
 		NodeCount: size,
 	}
 
-	operation, err := g.Service.Projects.Zones.Clusters.NodePools.SetSize(g.Project, g.Zone, g.Cluster, name, nodePoolSizeRequest).Context(context.Background()).Do()
+	operation, err := g.Service.Projects.Zones.Clusters.NodePools.SetSize(g.Project, g.Zone, g.Cluster, name, nodePoolSizeRequest).Context(g.Context).Do()
 
 	if err != nil {
 		return
