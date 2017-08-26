@@ -46,12 +46,11 @@ spec:
         ports:
         - name: prom-metrics
           containerPort: 9001
+        env:
         - name: NODE_POOL_FROM
           value: ${NODE_POOL_FROM}
         - name: NODE_POOL_TO
           value: ${NODE_POOL_TO}
-        - name: CLUSTER_NAME
-          value: ${CLUSTER_NAME}
         resources:
           requests:
             cpu: ${CPU_REQUEST}

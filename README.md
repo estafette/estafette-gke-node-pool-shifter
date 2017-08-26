@@ -63,8 +63,6 @@ spec:
           value: default-pool
         - name: NODE_POOL_TO
           value: preemptible-pool
-        - name: CLUSTER_NAME
-          value: my-cluster
         resources:
           requests:
             cpu: 10m
