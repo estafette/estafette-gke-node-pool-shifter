@@ -1,6 +1,7 @@
 # estafette-gke-node-pool-shifter
 
-This controller shifts nodes from one node pool to another, in order to favour preemptibles over a 'safety net' node pool of regular vms.
+This controller shifts nodes from one node pool to another, in order to favour preemptibles over a 'safety net' node
+pool of regular vms.
 
 [![License](https://img.shields.io/github/license/estafette/estafette-gke-node-pool-shifter.svg)](https://github.com/estafette/estafette-gke-node-pool-shifter/blob/master/LICENSE)
 
@@ -21,13 +22,19 @@ You can either use environment variables or flags to configure the following set
 
 ### In cluster
 
-As a Kubernetes administrator, you first need to verify if your cluster has correct permissions, the scope should be
-set to https://www.googleapis.com/auth/cloud-platform. If you cannot give permission or change the scope, you can
-create a service account with Compute and Container access, mount the file in the pod via a secret and set the
-GOOGLE_APPLICATION_CREDENTIALS environment variable to the path of this file. See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
+You first need to create a service account via the GCloud dashboard with Compute and Container access. This key is
+going to be used to authenticate from the application to the GCloud API.
 
-After what you should deploy the rbac.yaml file which set role and permissions inside the cluster. Then deploy the
-application to Kubernetes cluster using the manifest below.
+The service account key needs to be base64 encoded:
+
+```
+export GOOGLE_SERVICE_ACCOUNT=$(cat google-service-account.json | base64 -w 0)
+```
+
+See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
+
+After what you also have to deploy the rbac.yaml file which set role and permissions inside the cluster. Then deploy
+the application to Kubernetes cluster using the manifest below.
 
 
 ```yaml
@@ -35,6 +42,25 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: estafette
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: estafette-gke-node-pool-shifter
+  namespace: estafette
+  labels:
+    app: estafette-gke-node-pool-shifter
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: estafette-gke-node-pool-shifter-secrets
+  namespace: estafette
+  labels:
+    app: estafette-gke-node-pool-shifter
+type: Opaque
+data:
+  google-service-account.json: ${GOOGLE_SERVICE_ACCOUNT}
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -68,6 +94,8 @@ spec:
           value: default-pool
         - name: NODE_POOL_TO
           value: preemptible-pool
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/app-secrets/google-service-account.json
         resources:
           requests:
             cpu: 10m
@@ -81,7 +109,15 @@ spec:
             port: prom-metrics
           initialDelaySeconds: 30
           timeoutSeconds: 1
+        volumeMounts:
+        - name: app-secrets
+          mountPath: /etc/app-secrets
+      volumes:
+      - name: app-secrets
+        secret:
+          secretName: estafette-gke-node-pool-shifter-secrets
 ```
+
 
 ### Local development
 
@@ -100,7 +136,6 @@ gcloud beta container clusters create $CLUSTER_NAME \
   --project=$PROJECT \
   --zone=$ZONE \
   --cluster-version=$CLUSTER_VERSION \
-  --scopes=https://www.googleapis.com/auth/cloud-platform \
   --num-nodes=1 \
   --enable-autoscaling \
   --min-nodes=0 \
@@ -111,7 +146,6 @@ gcloud beta container node-pools create preemptible-pool \
   --project=$PROJECT \
   --zone=$ZONE \
   --cluster=$CLUSTER_NAME \
-  --scopes=https://www.googleapis.com/auth/cloud-platform \
   --num-nodes=1  \
   --enable-autoscaling \
   --min-nodes=1 \
