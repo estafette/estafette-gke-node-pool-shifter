@@ -207,10 +207,10 @@ func main() {
 				waitGroup.Done()
 
 				nodeTotals.With(prometheus.Labels{"status": status}).Inc()
+			} else {
+				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
+				time.Sleep(time.Duration(sleepTime) * time.Second)
 			}
-
-			log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
-			time.Sleep(time.Duration(sleepTime) * time.Second)
 		}
 	}(waitGroup)
 
