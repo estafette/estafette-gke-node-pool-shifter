@@ -22,7 +22,7 @@ import (
 
 var (
 	// flags
-	interval = kingpin.Flag("interval", "Time in second to wait between each node check.").
+	interval = kingpin.Flag("interval", "Time in second to wait between each node pool check.").
 			Envar("INTERVAL").
 			Default("300").
 			Short('i').
@@ -155,12 +155,17 @@ func main() {
 	signal.Notify(gracefulShutdown, syscall.SIGTERM, syscall.SIGINT)
 	waitGroup := &sync.WaitGroup{}
 
-	// process nodes
+	// process node pool
 	go func(waitGroup *sync.WaitGroup) {
 		for {
 			log.Info().Msg("Checking node pool to shift...")
 
-			sleepTime := ApplyJitter(*interval)
+			// interval between each process
+			processInterval := ApplyJitter(*interval)
+
+			// interval between actions, leverage provider requests when
+			// another operation is already operating on the cluster
+			actionInterval := ApplyJitter(10)
 
 			nodesFrom, err := kubernetes.GetNodeList(*nodePoolFrom)
 
@@ -169,8 +174,8 @@ func main() {
 					Err(err).
 					Str("node-pool", *nodePoolFrom).
 					Msg("Error while getting the list of nodes")
-				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
-				time.Sleep(time.Duration(sleepTime) * time.Second)
+				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
+				time.Sleep(time.Duration(processInterval) * time.Second)
 				continue
 			}
 
@@ -181,8 +186,8 @@ func main() {
 					Err(err).
 					Str("node-pool", *nodePoolTo).
 					Msg("Error while getting the list of nodes")
-				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
-				time.Sleep(time.Duration(sleepTime) * time.Second)
+				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
+				time.Sleep(time.Duration(processInterval) * time.Second)
 				continue
 			}
 
@@ -207,9 +212,12 @@ func main() {
 				waitGroup.Done()
 
 				nodeTotals.With(prometheus.Labels{"status": status}).Inc()
+
+				log.Info().Msgf("Sleeping for %v seconds...", actionInterval)
+				time.Sleep(time.Duration(actionInterval) * time.Second)
 			} else {
-				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
-				time.Sleep(time.Duration(sleepTime) * time.Second)
+				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
+				time.Sleep(time.Duration(processInterval) * time.Second)
 			}
 		}
 	}(waitGroup)
@@ -231,7 +239,7 @@ func shiftNode(g GCloudContainerClient, fromName, toName string, from, to *apiv1
 
 	log.Info().
 		Str("node-pool", toName).
-		Msgf("Adding 1 node to the pool, was %d node(s), now %d node(s)", toCurrentSize, toNewSize)
+		Msgf("Adding 1 node to the pool, currently %d node(s), expecting %d node(s)", toCurrentSize, toNewSize)
 
 	err = g.SetNodePoolSize(toName, toNewSize)
 
@@ -249,7 +257,7 @@ func shiftNode(g GCloudContainerClient, fromName, toName string, from, to *apiv1
 
 	log.Info().
 		Str("node-pool", fromName).
-		Msgf("Removing 1 node from the pool, was %d node(s), now %d node(s)", fromCurrentSize, fromNewSize)
+		Msgf("Removing 1 node from the pool, currently %d node(s), expecting %d node(s)", fromCurrentSize, fromNewSize)
 
 	err = g.SetNodePoolSize(fromName, fromNewSize)
 
@@ -258,7 +266,6 @@ func shiftNode(g GCloudContainerClient, fromName, toName string, from, to *apiv1
 			Err(err).
 			Str("node-pool", fromName).
 			Msg("Error resizing node pool")
-		return
 	}
 
 	return
