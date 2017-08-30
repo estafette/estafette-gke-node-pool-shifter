@@ -10,20 +10,21 @@ pool of regular vms.
 
 You can either use environment variables or flags to configure the following settings:
 
-| Environment variable   | Flag                     | Default  | Description
-| ---------------------- | ------------------------ | -------- | -----------------------------------------------------------------
-| INTERVAL               | --interval (-i)          | 300      | Time in second to wait between each shift check
-| KUBECONFIG             | --kubeconfig             |          | Provide the path to the kube config path, usually located in ~/.kube/config. For out of cluster execution
-| METRICS_LISTEN_ADDRESS | --metrics-listen-address | :9001    | The address to listen on for Prometheus metrics requests
-| METRICS_PATH           | --metrics-path           | /metrics | The path to listen for Prometheus metrics requests
-| NODE_POOL_FROM         | --node-pool-from         |          | Name of the node pool to shift from
-| NODE_POOL_TO           | --node-pool-to           |          | Name of the node pool to shift to
+| Environment variable    | Flag                      | Default  | Description
+| ----------------------- | ------------------------- | -------- | ----------------------------------------------------
+| INTERVAL                | --interval (-i)           | 300      | Time in second to wait between each shift check
+| KUBECONFIG              | --kubeconfig              |          | Provide the path to the kube config path, usually located in ~/.kube/config. For out of cluster execution
+| METRICS_LISTEN_ADDRESS  | --metrics-listen-address  | :9001    | The address to listen on for Prometheus metrics requests
+| METRICS_PATH            | --metrics-path            | /metrics | The path to listen for Prometheus metrics requests
+| NODE_POOL_FROM          | --node-pool-from          |          | Name of the node pool to shift from
+| NODE_POOL_FROM_MIN_NODE | --node-pool-from-min-node | 0        | Minimum amount of node to keep on the from node pool
+| NODE_POOL_TO            | --node-pool-to            |          | Name of the node pool to shift to
 
 
 ### In cluster
 
-You first need to create a service account via the GCloud dashboard with  role  set to Compute Instance Admin and Container
-Engine Admin. This key is going to be used to authenticate from the application to the GCloud API.
+You first need to create a service account via the GCloud dashboard with  role  set to Compute Instance Admin and
+Container Engine Admin. This key is going to be used to authenticate from the application to the GCloud API.
 
 The service account key needs to be base64 encoded:
 
