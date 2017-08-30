@@ -96,6 +96,8 @@ func main() {
 		Str("revision", revision).
 		Str("buildDate", buildDate).
 		Str("goVersion", goVersion).
+		Str("nodePooldFrom", *nodePoolFrom).
+		Str("nodePooldTo", *nodePoolTo).
 		Msg("Starting estafette-gke-node-pool-shifter...")
 
 	kubernetes, err := NewKubernetesClient(os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT"),
