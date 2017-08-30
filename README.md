@@ -22,8 +22,8 @@ You can either use environment variables or flags to configure the following set
 
 ### In cluster
 
-You first need to create a service account via the GCloud dashboard with Compute and Container access. This key is
-going to be used to authenticate from the application to the GCloud API.
+You first need to create a service account via the GCloud dashboard with  role  set to Compute Instance Admin and Container
+Engine Admin. This key is going to be used to authenticate from the application to the GCloud API.
 
 The service account key needs to be base64 encoded:
 
