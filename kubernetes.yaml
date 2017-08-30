@@ -60,11 +60,11 @@ spec:
           containerPort: 9001
         env:
         - name: NODE_POOL_FROM
-          value: ${NODE_POOL_FROM}
+          value: "${NODE_POOL_FROM}"
         - name: NODE_POOL_TO
-          value: ${NODE_POOL_TO}
+          value: "${NODE_POOL_TO}"
         - name: NODE_POOL_FROM_MIN_NODE
-          value: ${NODE_POOL_FROM_MIN_NODE}
+          value: "${NODE_POOL_FROM_MIN_NODE}"
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/app-secrets/google-service-account.json
         resources:
