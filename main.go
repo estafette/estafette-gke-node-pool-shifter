@@ -163,11 +163,7 @@ func main() {
 			log.Info().Msg("Checking node pool to shift...")
 
 			// interval between each process
-			processInterval := ApplyJitter(*interval)
-
-			// interval between actions, leverage provider requests when
-			// another operation is already operating on the cluster
-			actionInterval := ApplyJitter(10)
+			sleepTime := time.Duration(ApplyJitter(*interval)) * time.Second
 
 			nodesFrom, err := kubernetes.GetNodeList(*nodePoolFrom)
 
@@ -176,8 +172,11 @@ func main() {
 					Err(err).
 					Str("node-pool", *nodePoolFrom).
 					Msg("Error while getting the list of nodes")
-				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
-				time.Sleep(time.Duration(processInterval) * time.Second)
+
+				nodeTotals.With(prometheus.Labels{"status": "failed"}).Inc()
+
+				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
+				time.Sleep(sleepTime)
 				continue
 			}
 
@@ -188,8 +187,11 @@ func main() {
 					Err(err).
 					Str("node-pool", *nodePoolTo).
 					Msg("Error while getting the list of nodes")
-				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
-				time.Sleep(time.Duration(processInterval) * time.Second)
+				log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
+
+				nodeTotals.With(prometheus.Labels{"status": "failed"}).Inc()
+
+				time.Sleep(sleepTime)
 				continue
 			}
 
@@ -199,13 +201,16 @@ func main() {
 				Str("node-pool", *nodePoolFrom).
 				Msgf("Node pool has %d node(s), minimun wanted: %d node(s)", nodePoolFromSize, *nodePoolFromMinNode)
 
+			// prometheus status
+			status := "skipped"
+
 			// TODO remove nodePoolFromMinNode, use value from node pool autoscaling setting (min node) instead
 			if nodePoolFromSize > *nodePoolFromMinNode && len(nodesFrom.Items) > 0 {
 				log.Info().
 					Str("node-pool", *nodePoolTo).
 					Msg("Attempting to shift one node...")
 
-				status := "shifted"
+				status = "shifted"
 
 				waitGroup.Add(1)
 				if err := shiftNode(gcloudContainerClient, *nodePoolFrom, *nodePoolTo, nodesFrom, nodesTo); err != nil {
@@ -213,14 +218,14 @@ func main() {
 				}
 				waitGroup.Done()
 
-				nodeTotals.With(prometheus.Labels{"status": status}).Inc()
-
-				log.Info().Msgf("Sleeping for %v seconds...", actionInterval)
-				time.Sleep(time.Duration(actionInterval) * time.Second)
-			} else {
-				log.Info().Msgf("Sleeping for %v seconds...", processInterval)
-				time.Sleep(time.Duration(processInterval) * time.Second)
+				// interval between actions, leverage provider requests when
+				// another operation is already operating on the cluster
+				sleepTime = time.Duration(ApplyJitter(10)) * time.Second
 			}
+
+			nodeTotals.With(prometheus.Labels{"status": status}).Inc()
+			log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
+			time.Sleep(sleepTime)
 		}
 	}(waitGroup)
 
