@@ -42,7 +42,7 @@ export APP_NAME=estafette-gke-node-pool-shifter
 export TEAM_NAME=tooling
 export VERSION=1.0.11
 export GO_PIPELINE_LABEL=1.0.11
-export GOOGLE_SERVICE_ACCOUNT=$(cat google-service-account.json | base64 -w 0)
+export GOOGLE_SERVICE_ACCOUNT=$(cat google-service-account.json | base64)
 export INTERVAL=300
 export NODE_POOL_FROM=default-pool
 export NODE_POOL_TO=preemptible-pool
@@ -53,12 +53,10 @@ export CPU_LIMIT=50m
 export MEMORY_LIMIT=128Mi
 
 # Setup RBAC
-curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/rbac.yaml -o rbac.yaml
-cat rbac.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
+curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/rbac.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
 
 # Run application
-curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/kubernetes.yaml -o kubernetes.yaml
-cat kubernetes.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
+curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/kubernetes.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
 ```
 
 
