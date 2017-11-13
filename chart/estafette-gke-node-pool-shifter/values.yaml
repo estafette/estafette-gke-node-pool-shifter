@@ -1,0 +1,47 @@
+
+image:
+  repository: estafette/estafette-gke-node-pool-shifter
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi
+  limits:
+    cpu: 50m
+    memory: 128Mi
+
+rbac:
+  # If true, create & use RBAC resources
+  create: false
+
+revisionHistoryLimit: 10
+
+# Time in second to wait between each node pool check
+interval: 300
+
+# Path to the ervice account used to interact with the Google Cloud API
+googleServiceAccount: ""
+
+nodePool:
+  # The name of the node pool to shift from
+  from: ""
+
+  # The name of the node pool to shift to
+  to: ""
+
+  # The minimum number of node to keep for the node pool to shift
+  fromMinNode: 0
+
+livenessProbe:
+  path: /metrics
+  port: 9001
+  initialDelaySeconds: 30
+  timeoutSeconds: 1
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9001"
+
+extraLabels: {}
+  # team: tooling

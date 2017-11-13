@@ -20,103 +20,43 @@ You can either use environment variables or flags to configure the following set
 | NODE_POOL_FROM_MIN_NODE | --node-pool-from-min-node | 0        | Minimum amount of node to keep on the from node pool
 | NODE_POOL_TO            | --node-pool-to            |          | Name of the node pool to shift to
 
+*Before deploying*, you first need to create a service account via the GCloud dashboard with role set to _Compute
+Instance Admin_ and _Container Engine Admin_. This key is going to be used to authenticate from the application to
+the GCloud API. See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
 
-### In cluster
 
-You first need to create a service account via the GCloud dashboard with  role  set to Compute Instance Admin and
-Container Engine Admin. This key is going to be used to authenticate from the application to the GCloud API.
-
-The service account key needs to be base64 encoded:
+### Deploy with Helm
 
 ```
-export GOOGLE_SERVICE_ACCOUNT=$(cat google-service-account.json | base64 -w 0)
+brew install kubernetes-helm
+helm init --history-max 25 --upgrade
+helm package chart/estafette-gke-node-pool-shifter --version 1.0.11
+helm upgrade estafette-gke-node-pool-shifter estafette-gke-node-pool-shifter-1.0.11.tgz --namespace estafette --install --set rbac.create=true --set googleServiceAccount=$(./google_service_account.json | base64)
 ```
 
-See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
+### Deploy without Helm
 
-After what you also have to deploy the rbac.yaml file which set role and permissions inside the cluster. Then deploy
-the application to Kubernetes cluster using the manifest below.
+```
+export NAMESPACE=estafette
+export APP_NAME=estafette-gke-node-pool-shifter
+export TEAM_NAME=tooling
+export VERSION=1.0.11
+export GO_PIPELINE_LABEL=1.0.11
+export GOOGLE_SERVICE_ACCOUNT=$(cat google-service-account.json | base64)
+export INTERVAL=300
+export NODE_POOL_FROM=default-pool
+export NODE_POOL_TO=preemptible-pool
+export NODE_POOL_FROM_MIN_NODE=0
+export CPU_REQUEST=10m
+export MEMORY_REQUEST=16Mi
+export CPU_LIMIT=50m
+export MEMORY_LIMIT=128Mi
 
+# Setup RBAC
+curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/rbac.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
 
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: estafette
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: estafette-gke-node-pool-shifter
-  namespace: estafette
-  labels:
-    app: estafette-gke-node-pool-shifter
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: estafette-gke-node-pool-shifter-secrets
-  namespace: estafette
-  labels:
-    app: estafette-gke-node-pool-shifter
-type: Opaque
-data:
-  google-service-account.json: ${GOOGLE_SERVICE_ACCOUNT}
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: estafette-gke-node-pool-shifter
-  namespace: estafette
-  labels:
-    app: estafette-gke-node-pool-shifter
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: estafette-gke-node-pool-shifter
-  template:
-    metadata:
-      labels:
-        app: estafette-gke-node-pool-shifter
-    spec:
-      serviceAccount: estafette-gke-node-pool-shifter
-      terminationGracePeriodSeconds: 300
-      containers:
-      - name: estafette-gke-node-pool-shifter
-        image: estafette/estafette-gke-node-pool-shifter:latest
-        ports:
-        - name: prom-metrics
-          containerPort: 9001
-        env:
-        - name: NODE_POOL_FROM
-          value: default-pool
-        - name: NODE_POOL_TO
-          value: preemptible-pool
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/app-secrets/google-service-account.json
-        resources:
-          requests:
-            cpu: 10m
-            memory: 16Mi
-          limits:
-            cpu: 50m
-            memory: 128Mi
-        livenessProbe:
-          httpGet:
-            path: /metrics
-            port: prom-metrics
-          initialDelaySeconds: 30
-          timeoutSeconds: 1
-        volumeMounts:
-        - name: app-secrets
-          mountPath: /etc/app-secrets
-      volumes:
-      - name: app-secrets
-        secret:
-          secretName: estafette-gke-node-pool-shifter-secrets
+# Run application
+curl https://raw.githubusercontent.com/estafette/estafette-gke-node-pool-shifter/master/kubernetes.yaml | envsubst | kubectl apply -n ${NAMESPACE} -f -
 ```
 
 
