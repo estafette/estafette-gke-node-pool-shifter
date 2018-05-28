@@ -44,20 +44,22 @@ func (gc *GCloudContainer) waitForOperation(operation *container.Operation) (err
 	timeout := operationWaitTimeoutSecond * time.Second
 
 	for {
-		log.Debug().Msgf("Waiting for operation %s %s %s", gc.Client.Project, gc.Client.Location, operation.Name)
+		apiName := fmt.Sprintf("projects/%v/locations/%v/operations/%v", gc.Client.Project, gc.Client.Location, operation.Name)
 
-		if op, err := gc.Service.Projects.Locations.Operations.Get(operation.Name).Do(); err == nil {
-			log.Debug().Msgf("Operation %s %s %s status: %s", gc.Client.Project, gc.Client.Location, operation.Name, op.Status)
+		log.Debug().Msgf("Waiting for operation %v", apiName)
+
+		if op, err := gc.Service.Projects.Locations.Operations.Get(apiName).Do(); err == nil {
+			log.Debug().Msgf("Operation %v status: %s", apiName, op.Status)
 
 			if op.Status == "DONE" {
 				return nil
 			}
 		} else {
-			log.Error().Err(err).Msgf("Error while getting operation %s on %s: %v", operation.Name, operation.TargetLink, err)
+			log.Error().Err(err).Msgf("Error while getting operation %v on %s: %v", apiName, operation.TargetLink, err)
 		}
 
 		if time.Since(start) > timeout {
-			err = fmt.Errorf("Timeout while waiting for operation %s on %s to complete", operation.Name, operation.TargetLink)
+			err = fmt.Errorf("Timeout while waiting for operation %v on %s to complete", apiName, operation.TargetLink)
 			return
 		}
 
