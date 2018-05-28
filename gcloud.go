@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/container/v1"
+	"google.golang.org/api/container/v1beta1"
 )
 
 const (
@@ -22,11 +22,11 @@ const (
 )
 
 type GCloud struct {
-	Client  *http.Client
-	Cluster string
-	Context context.Context
-	Project string
-	Zone    string
+	Client   *http.Client
+	Cluster  string
+	Context  context.Context
+	Project  string
+	Location string
 }
 
 type GCloudContainer struct {
@@ -84,7 +84,6 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 	s := strings.Split(providerId, "/")
 
 	g.Project = s[2]
-	g.Zone = s[3]
 
 	service, err := compute.New(g.Client)
 
@@ -93,7 +92,7 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 		return
 	}
 
-	node, err := service.Instances.Get(g.Project, g.Zone, s[4]).Context(g.Context).Do()
+	node, err := service.Instances.Get(g.Project, s[3], s[4]).Context(g.Context).Do()
 
 	if err != nil {
 		err = fmt.Errorf("Error retrieving instance details from GCloud: %v", err)
@@ -104,7 +103,12 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 	for _, metadata := range node.Metadata.Items {
 		if metadata.Key == "cluster-name" {
 			g.Cluster = *metadata.Value
-			return
+		}
+		if metadata.Key == "cluster-location" {
+			g.Location = *metadata.Value
+		}
+		if g.Cluster != "" && g.Location != "" {
+			break
 		}
 	}
 
@@ -113,8 +117,7 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 
 // GetNodePool retrieve a given node pool
 func (g *GCloudContainer) GetNodePool(name string) (nodePool *container.NodePool, err error) {
-	nodePool, err = g.Service.Projects.Zones.Clusters.NodePools.Get(g.Client.Project, g.Client.Zone, g.Client.Cluster,
-		name).Context(g.Client.Context).Do()
+	nodePool, err = g.Service.Projects.Locations.Clusters.NodePools.Get(name).Context(g.Client.Context).Do()
 	return
 }
 
@@ -124,8 +127,7 @@ func (g *GCloudContainer) SetNodePoolSize(name string, size int64) (err error) {
 		NodeCount: size,
 	}
 
-	operation, err := g.Service.Projects.Zones.Clusters.NodePools.SetSize(g.Client.Project, g.Client.Zone,
-		g.Client.Cluster, name, nodePoolSizeRequest).Context(g.Client.Context).Do()
+	operation, err := g.Service.Projects.Locations.Clusters.NodePools.SetSize(name, nodePoolSizeRequest).Context(g.Client.Context).Do()
 
 	if err != nil {
 		return
@@ -142,10 +144,10 @@ func (g *GCloudContainer) waitForOperation(operation *container.Operation) (err 
 	timeout := operationWaitTimeoutSecond * time.Second
 
 	for {
-		log.Debug().Msgf("Waiting for operation %s %s %s", g.Client.Project, g.Client.Zone, operation.Name)
+		log.Debug().Msgf("Waiting for operation %s %s %s", g.Client.Project, g.Client.Location, operation.Name)
 
-		if op, err := g.Service.Projects.Zones.Operations.Get(g.Client.Project, g.Client.Zone, operation.Name).Do(); err == nil {
-			log.Debug().Msgf("Operation %s %s %s status: %s", g.Client.Project, g.Client.Zone, operation.Name, op.Status)
+		if op, err := g.Service.Projects.Locations.Operations.Get(operation.Name).Do(); err == nil {
+			log.Debug().Msgf("Operation %s %s %s status: %s", g.Client.Project, g.Client.Location, operation.Name, op.Status)
 
 			if op.Status == "DONE" {
 				return nil
@@ -155,7 +157,7 @@ func (g *GCloudContainer) waitForOperation(operation *container.Operation) (err 
 		}
 
 		if time.Since(start) > timeout {
-			err = fmt.Errorf("Timeout while waiting for operation %s on %s to complete.", operation.Name, operation.TargetLink)
+			err = fmt.Errorf("Timeout while waiting for operation %s on %s to complete", operation.Name, operation.TargetLink)
 			return
 		}
 

@@ -8,5 +8,6 @@ govendor fetch github.com/prometheus/client_golang/prometheus@v0.8.0
 govendor fetch github.com/rs/zerolog@v1.2.2
 govendor fetch github.com/rs/zerolog/log@v1.2.2
 govendor fetch golang.org/x/oauth2/google
-govendor fetch google.golang.org/api/container/v1
+govendor fetch google.golang.org/api/container/v1beta1
 govendor fetch google.golang.org/api/compute/v1
+govendor fetch google.golang.org/api/gensupport
