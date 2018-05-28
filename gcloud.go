@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/container/v1beta1"
@@ -29,20 +27,9 @@ type GCloud struct {
 	Location string
 }
 
-type GCloudContainer struct {
-	Client  *GCloud
-	Service *container.Service
-}
-
 type GCloudClient interface {
 	GetProjectDetailsFromNode(string) error
 	NewGCloudContainerClient() (GCloudContainerClient, error)
-}
-
-type GCloudContainerClient interface {
-	GetNodePool(string) (*container.NodePool, error)
-	SetNodePoolSize(string, int64) error
-	waitForOperation(*container.Operation) error
 }
 
 // NewGCloudClient return a GCloud client
@@ -110,60 +97,6 @@ func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
 		if g.Cluster != "" && g.Location != "" {
 			break
 		}
-	}
-
-	return
-}
-
-// GetNodePool retrieve a given node pool
-func (g *GCloudContainer) GetNodePool(name string) (nodePool *container.NodePool, err error) {
-	nodePool, err = g.Service.Projects.Locations.Clusters.NodePools.Get(name).Context(g.Client.Context).Do()
-	return
-}
-
-// SetNodePoolSize set the size of a given node pool
-func (g *GCloudContainer) SetNodePoolSize(name string, size int64) (err error) {
-	nodePoolSizeRequest := &container.SetNodePoolSizeRequest{
-		NodeCount: size,
-	}
-
-	operation, err := g.Service.Projects.Locations.Clusters.NodePools.SetSize(name, nodePoolSizeRequest).Context(g.Client.Context).Do()
-
-	if err != nil {
-		return
-	}
-
-	err = g.waitForOperation(operation)
-
-	return
-}
-
-// waitForOperation wait for a GCloud operation to finish
-func (g *GCloudContainer) waitForOperation(operation *container.Operation) (err error) {
-	start := time.Now()
-	timeout := operationWaitTimeoutSecond * time.Second
-
-	for {
-		log.Debug().Msgf("Waiting for operation %s %s %s", g.Client.Project, g.Client.Location, operation.Name)
-
-		if op, err := g.Service.Projects.Locations.Operations.Get(operation.Name).Do(); err == nil {
-			log.Debug().Msgf("Operation %s %s %s status: %s", g.Client.Project, g.Client.Location, operation.Name, op.Status)
-
-			if op.Status == "DONE" {
-				return nil
-			}
-		} else {
-			log.Error().Err(err).Msgf("Error while getting operation %s on %s: %v", operation.Name, operation.TargetLink, err)
-		}
-
-		if time.Since(start) > timeout {
-			err = fmt.Errorf("Timeout while waiting for operation %s on %s to complete", operation.Name, operation.TargetLink)
-			return
-		}
-
-		sleepTime := ApplyJitter(operationPollIntervalSecond)
-		log.Info().Msgf("Sleeping for %v seconds...", sleepTime)
-		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 
 	return
