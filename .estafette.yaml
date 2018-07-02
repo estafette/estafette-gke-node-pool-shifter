@@ -3,6 +3,7 @@ builder:
 
 labels:
   app: estafette-gke-node-pool-shifter
+  app-group: estafette-various
   team: estafette-team
   language: golang
 
