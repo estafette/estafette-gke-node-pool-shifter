@@ -15,7 +15,7 @@ version:
     labelTemplate: '{{branch}}'
     releaseBranch: master
 
-pipelines:
+stages:
   set-pending-build-status:
     image: extensions/github-status:dev
     status: pending
@@ -62,3 +62,9 @@ pipelines:
     - '#build-status'
     when:
       status == 'failed'
+
+releases:
+  tooling:
+  development:
+  staging:
+  production:
