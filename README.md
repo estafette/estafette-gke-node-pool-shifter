@@ -21,7 +21,7 @@ You can either use environment variables or flags to configure the following set
 | NODE_POOL_TO            | --node-pool-to            |          | Name of the node pool to shift to
 
 *Before deploying*, you first need to create a service account via the GCloud dashboard with role set to _Compute
-Instance Admin_ and _Container Engine Admin_. This key is going to be used to authenticate from the application to
+Instance Admin_ and _Kubernetes Engine Admin_. This key is going to be used to authenticate from the application to
 the GCloud API. See [documentation](https://developers.google.com/identity/protocols/application-default-credentials).
 
 
