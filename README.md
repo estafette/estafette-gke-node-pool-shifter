@@ -28,10 +28,22 @@ the GCloud API. See [documentation](https://developers.google.com/identity/proto
 ### Deploy with Helm
 
 ```
-brew install kubernetes-helm
-helm init --history-max 25 --upgrade
-helm package chart/estafette-gke-node-pool-shifter --version 1.0.11
-helm upgrade estafette-gke-node-pool-shifter estafette-gke-node-pool-shifter-1.0.11.tgz --namespace estafette --install --set rbac.create=true --set googleServiceAccount=$(./google_service_account.json | base64)
+# Prepare Helm/Tiller
+$ kubectl create sa tiller -n kube-system
+$ helm init --service-account tiller
+$ kubectl create clusterrolebinding tiller \
+    --clusterrole=cluster-admin \
+    --serviceaccount=kube-system:tiller
+
+# Install
+$ helm upgrade estafette-gke-node-pool-shifter \
+    --namespace estafette \
+    --install \
+    --set rbac.create=true \
+    --set-file googleServiceAccount=./google_service_account.json \
+    --set nodePool.from=default-pool \
+    --set nodePool.to=preemptible-pool \
+    chart/estafette-gke-node-pool-shifter
 ```
 
 ### Deploy without Helm
