@@ -59,6 +59,8 @@ stages:
     image: extensions/helm:dev
     action: test
     prerelease: true
+    values:
+    - secret.googleServiceAccountKeyfileJson='{"type":"service_account"}'
 
   clone-charts-repo:
     image: extensions/git-clone:dev
