@@ -73,7 +73,7 @@ extraPodLabels: {}
 
 secret:
   # sets a json keyfile for a gcp service account
-  googleServiceAccountKeyfileJson: "{}"
+  googleServiceAccountKeyfileJson: '{"type": "service_account"}'
 
 # the interval in seconds at which a nodes get shifted
 interval: 300
