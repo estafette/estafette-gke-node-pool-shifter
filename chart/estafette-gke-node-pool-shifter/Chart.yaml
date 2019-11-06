@@ -1,6 +1,0 @@
-name: estafette-gke-node-pool-shifter
-version: 1.0.11
-description: A Kubernetes controller that shifts nodes from one node pool to another, in order to favour preemptibles over a 'safety net' node pool of regular vms
-home: https://estafette.io/
-sources:
-- https://github.com/estafette/estafette-gke-node-pool-shifter
