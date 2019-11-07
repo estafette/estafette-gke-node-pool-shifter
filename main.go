@@ -1,8 +1,6 @@
 package main
 
 import (
-	stdlog "log"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -11,13 +9,12 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/rs/zerolog"
+	foundation "github.com/estafette/estafette-foundation"
 	"github.com/rs/zerolog/log"
 
 	apiv1 "github.com/ericchiang/k8s/api/v1"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -61,6 +58,8 @@ var (
 	)
 
 	// application version
+	appgroup  string
+	app       string
 	version   string
 	branch    string
 	revision  string
@@ -74,31 +73,12 @@ func init() {
 }
 
 func main() {
+
+	// parse command line parameters
 	kingpin.Parse()
 
-	// log as severity for stackdriver logging to recognize the level
-	zerolog.LevelFieldName = "severity"
-
-	// set some default fields added to all logs
-	log.Logger = zerolog.New(os.Stdout).With().
-		Timestamp().
-		Str("app", "estafette-gke-node-pool-shifter").
-		Str("version", version).
-		Logger()
-
-	// use zerolog for any logs sent via standard log library
-	stdlog.SetFlags(0)
-	stdlog.SetOutput(log.Logger)
-
-	// log startup message
-	log.Info().
-		Str("branch", branch).
-		Str("revision", revision).
-		Str("buildDate", buildDate).
-		Str("goVersion", goVersion).
-		Str("nodePooldFrom", *nodePoolFrom).
-		Str("nodePooldTo", *nodePoolTo).
-		Msg("Starting estafette-gke-node-pool-shifter...")
+	// configure json logging
+	foundation.InitLogging(appgroup, app, version, branch, revision, buildDate)
 
 	kubernetes, err := NewKubernetesClient(os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT"),
 		os.Getenv("KUBERNETES_NAMESPACE"), *kubeConfigPath)
@@ -107,19 +87,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Error initializing Kubernetes client")
 	}
 
-	// start prometheus
-	go func() {
-		log.Info().
-			Str("port", *prometheusAddress).
-			Str("path", *prometheusMetricsPath).
-			Msg("Serving Prometheus metrics...")
-
-		http.Handle(*prometheusMetricsPath, promhttp.Handler())
-
-		if err := http.ListenAndServe(*prometheusAddress, nil); err != nil {
-			log.Fatal().Err(err).Msg("Starting Prometheus listener failed")
-		}
-	}()
+	foundation.InitMetrics()
 
 	// create GCloud Client
 	gcloud, err := NewGCloudClient()
@@ -142,7 +110,7 @@ func main() {
 	gcloud.GetProjectDetailsFromNode(*nodes.Items[0].Spec.ProviderID)
 
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error getting project details from node")
+		log.Fatal().Err(err).Msg("Error getting project details from node; are you running this in GKE?")
 	}
 
 	// now that we have the cluster id, create GCloud container client

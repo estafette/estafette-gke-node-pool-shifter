@@ -2,24 +2,24 @@ builder:
   track: dev
 
 labels:
-  app-group: estafette-various
+  app-group: estafette-controllers
   team: estafette-team
   language: golang
 
 version:
   semver:
     major: 1
-    minor: 0
+    minor: 2
 
 stages:
   build:
-    image: golang:1.13.0-alpine3.10
+    image: golang:1.13.4-alpine3.10
     env:
       CGO_ENABLED: 0
       GOOS: linux
     commands:
     - go test ./...
-    - go build -a -installsuffix cgo -ldflags "-X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME} .
+    - go build -a -installsuffix cgo -ldflags "-X main.appgroup=${ESTAFETTE_LABEL_APP_GROUP} -X main.app=${ESTAFETTE_GIT_NAME} -X main.version=${ESTAFETTE_BUILD_VERSION} -X main.revision=${ESTAFETTE_GIT_REVISION} -X main.branch=${ESTAFETTE_GIT_BRANCH} -X main.buildDate=${ESTAFETTE_BUILD_DATETIME}" -o ./publish/${ESTAFETTE_GIT_NAME} .
 
   bake:
     image: extensions/docker:dev
@@ -35,10 +35,40 @@ stages:
     action: push
     repositories:
     - estafette
-    when:
-      status == 'succeeded' &&
-      branch == 'master' &&
-      server == 'gocd'
+
+  lint-helm-chart:
+    image: extensions/helm:dev
+    action: lint
+    prerelease: true
+
+  package-helm-chart:
+    image: extensions/helm:dev
+    action: package
+    prerelease: true
+
+  test-helm-chart:
+    services:
+    - name: kubernetes
+      image: bsycorp/kind:latest-1.12
+      ports:
+      - port: 8443
+      - port: 10080
+        readiness:
+          path: /kubernetes-ready
+          timeoutSeconds: 180
+    image: extensions/helm:dev
+    action: test
+    prerelease: true
+
+  clone-charts-repo:
+    image: extensions/git-clone:dev
+    repo: helm-charts
+    branch: master
+
+  publish-helm-chart:
+    image: extensions/helm:dev
+    action: publish
+    prerelease: true
 
   slack-notify:
     image: extensions/slack-build-status:dev
@@ -46,5 +76,27 @@ stages:
     channels:
     - '#build-status'
     when:
-      status == 'succeeded' ||
       status == 'failed'
+
+releases:
+  release:
+    clone: true
+    stages:
+      package-helm-chart:
+        image: extensions/helm:dev
+        action: package
+
+      clone-charts-repo:
+        image: extensions/git-clone:dev
+        repo: helm-charts
+        branch: master
+
+      publish-helm-chart:
+        image: extensions/helm:dev
+        action: publish
+        purgePrerelease: true
+
+      create-github-release:
+        image: extensions/github-release:dev
+        version: ${ESTAFETTE_BUILD_VERSION_MAJOR}.${ESTAFETTE_BUILD_VERSION_MINOR}.0
+        closeMilestone: true
