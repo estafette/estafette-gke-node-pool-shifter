@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/container/v1beta1"
+	container "google.golang.org/api/container/v1beta1"
 )
 
 const (
@@ -68,6 +68,11 @@ func (g *GCloud) NewGCloudContainerClient() (gcloud GCloudContainerClient, err e
 
 // GetProjectDetailsFromNode retrieve project id, zone and cluster id from a given node spec provider id
 func (g *GCloud) GetProjectDetailsFromNode(providerId string) (err error) {
+
+	if providerId == "" {
+		return fmt.Errorf("Provider ID is empty, doesn't seem to run in Google Cloud")
+	}
+
 	s := strings.Split(providerId, "/")
 
 	g.Project = s[2]

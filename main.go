@@ -110,7 +110,7 @@ func main() {
 	gcloud.GetProjectDetailsFromNode(*nodes.Items[0].Spec.ProviderID)
 
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error getting project details from node")
+		log.Fatal().Err(err).Msg("Error getting project details from node; are you running this in GKE?")
 	}
 
 	// now that we have the cluster id, create GCloud container client
