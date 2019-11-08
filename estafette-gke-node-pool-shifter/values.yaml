@@ -2,6 +2,33 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+#
+# APPLICATION SETTINGS
+#
+
+# the interval in seconds at which a nodes get shifted
+interval: 300
+
+# the node pool to reduce in size
+nodePoolFrom: node-pool-a
+
+# the node pool to scale up
+nodePoolTo: node-pool-b
+
+# the number of nodes to keep in the node pool that's getting drained
+nodePoolFromMinNode: 0
+
+secret:
+  # when using estafette-gcp-service account controller to fetch key files, set this to true and leave googleServiceAccountKeyfileJson empty
+  useGcpServiceAccountAnnotation: false
+
+  # sets a json keyfile for a gcp service account
+  googleServiceAccountKeyfileJson: '{"type": "service_account"}'
+
+#
+# GENERIC SETTINGS
+#
+
 replicaCount: 1
 
 image:
@@ -70,22 +97,3 @@ extraLabels: {}
 
 # use to add extra labels to podspec for getting their values in prometheus
 extraPodLabels: {}
-
-secret:
-  # when using estafette-gcp-service account controller to fetch key files, set this to true and leave googleServiceAccountKeyfileJson empty
-  useGcpServiceAccountAnnotation: false
-
-  # sets a json keyfile for a gcp service account
-  googleServiceAccountKeyfileJson: '{"type": "service_account"}'
-
-# the interval in seconds at which a nodes get shifted
-interval: 300
-
-# the node pool to reduce in size
-nodePoolFrom: node-pool-a
-
-# the node pool to scale up
-nodePoolTo: node-pool-b
-
-# the number of nodes to keep in the node pool that's getting drained
-nodePoolFromMinNode: 0
