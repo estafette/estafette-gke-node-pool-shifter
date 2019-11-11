@@ -61,7 +61,6 @@ stages:
           timeoutSeconds: 180
     image: extensions/helm:dev
     action: test
-    version: ${ESTAFETTE_BUILD_VERSION}
 
   clone-charts-repo:
     image: extensions/git-clone:dev
