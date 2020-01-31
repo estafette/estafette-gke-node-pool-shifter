@@ -2,10 +2,8 @@ package main
 
 import (
 	"os"
-	"os/signal"
 	"runtime"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/alecthomas/kingpin"
@@ -78,7 +76,10 @@ func main() {
 	kingpin.Parse()
 
 	// init log format from envvar ESTAFETTE_LOG_FORMAT
-	foundation.InitLoggingFromEnv(appgroup, app, version, branch, revision, buildDate)
+	foundation.InitLoggingFromEnv(foundation.NewApplicationInfo(appgroup, app, version, branch, revision, buildDate))
+
+	// init /liveness endpoint
+	foundation.InitLiveness()
 
 	kubernetes, err := NewKubernetesClient(os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT"),
 		os.Getenv("KUBERNETES_NAMESPACE"), *kubeConfigPath)
@@ -121,9 +122,7 @@ func main() {
 	}
 
 	// define channel and wait group to gracefully shutdown the application
-	gracefulShutdown := make(chan os.Signal)
-	signal.Notify(gracefulShutdown, syscall.SIGTERM, syscall.SIGINT)
-	waitGroup := &sync.WaitGroup{}
+	gracefulShutdown, waitGroup := foundation.InitGracefulShutdownHandling()
 
 	// process node pool
 	go func(waitGroup *sync.WaitGroup) {
@@ -197,13 +196,7 @@ func main() {
 		}
 	}(waitGroup)
 
-	signalReceived := <-gracefulShutdown
-	log.Info().
-		Msgf("Received signal %v. Sending shutdown and waiting on goroutines...", signalReceived)
-
-	waitGroup.Wait()
-
-	log.Info().Msg("Shutting down...")
+	foundation.HandleGracefulShutdown(gracefulShutdown, waitGroup)
 }
 
 // shiftNode safely try to add a new node to a pool then remove a node from another
