@@ -108,7 +108,7 @@ func main() {
 		log.Fatal().Msg("Error there is no node in the cluster")
 	}
 
-	gcloud.GetProjectDetailsFromNode(*nodes.Items[0].Spec.ProviderID)
+	err = gcloud.GetProjectDetailsFromNode(*nodes.Items[0].Spec.ProviderID)
 
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error getting project details from node; are you running this in GKE?")
